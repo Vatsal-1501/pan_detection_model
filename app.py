@@ -1,62 +1,39 @@
-import os
-import pandas as pd
+from flask import Flask, request, jsonify
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from sklearn.preprocessing import StandardScaler
 import joblib
 
-def train_models(merged_csv_path):
-    """Train models using the merged CSV file without timestamp dependency."""
+app = Flask(__name__)
+
+# Load models
+status_model = joblib.load("pan_classifier.pkl")
+temp_model = joblib.load("temperature_predictor.pkl")
+scaler = joblib.load("scaler.pkl")  # Load the scaler
+
+@app.route("/", methods=["GET"])
+def home():
+    return jsonify({"message": "On2Cook AI Server is Running!"})
+
+@app.route("/detect", methods=["POST"])
+def detect_pan_status():
+    try:
+        data = request.json  # Receive JSON sensor readings
+        features = np.array(data["features"]).reshape(1, -1)
+        
+        # Scale input features
+        features_scaled = scaler.transform(features)\
+        
+        # Predict pan status
+        status = status_model.predict(features)[0]  # 0 (Empty) or 1 (Not Empty)
+        
+        # Predict temperature
+        temperature = temp_model.predict(features)[0]
+        
+        return jsonify({"pan_status": "Not Empty" if status == 1 else "Empty", "temperature": round(temperature, 2)})
     
-  
-    df = pd.read_csv(merged_csv_path)
-    
-    # Drop unnecessary columns
-    df.drop(columns=['Time(ms)', 'Unnamed: 6'], inplace=True, errors='ignore')
-
-    # Print column names for debugging
-    print("Columns after cleaning:", df.columns)
-    
-    # Select sensor features
-    features = ['PAN_Inside:', 'PAN_Outside:', 'Glass_Temp:', 'Ind_Current:', 'Mag_Current:']
-    
-    # Convert all feature columns to numeric (force errors to NaN)
-    df[features] = df[features].apply(pd.to_numeric, errors='coerce')
-
-    # Drop rows where any feature column is NaN
-    df.dropna(subset=features, inplace=True)
-
-    # Print sample of cleaned data
-    print("Sample of cleaned data:\n", df.head())
-
-    # Define X and y
-    X = df[features]
-    y_class = df['empty_pan']  # Classification target
-    y_reg = df['Glass_Temp:']  # Regression target
-
-    # Check sample consistency
-    print(f"X shape: {X.shape}, y_class length: {len(y_class)}, y_reg length: {len(y_reg)}")
-
-    # Initialize models
-    clf = RandomForestClassifier(n_estimators=100, random_state=42)
-    reg = RandomForestRegressor(n_estimators=100, random_state=42)
-    scaler = StandardScaler()
-
-    # Scale features
-    X_scaled = scaler.fit_transform(X)
-
-    # Train models
-    clf.fit(X_scaled, y_class)
-    reg.fit(X_scaled, y_reg)
-
-    os.makedirs("models", exist_ok=True)
-
-  
-    joblib.dump(clf, "models/pan_classifier.pkl")
-    joblib.dump(reg, "models/temperature_predictor.pkl")
-    joblib.dump(scaler, "models/scaler.pkl")
-
-    print("✅ Models trained successfully and saved in the 'models' directory!")
+    except Exception as e:
+        return jsonify({"error": str(e)})
 
 if __name__ == "__main__":
-    train_models("newdata.csv")
+    app.run(host="0.0.0.0", port=5000, debug=True)
+
+
