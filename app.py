@@ -20,7 +20,7 @@ def detect_pan_status():
         features = np.array(data["features"]).reshape(1, -1)
         
         # Scale input features
-        features_scaled = scaler.transform(features)\
+        features_scaled = scaler.transform(features)
         
         # Predict pan status
         status = status_model.predict(features)[0]  # 0 (Empty) or 1 (Not Empty)
