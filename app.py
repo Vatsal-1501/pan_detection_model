@@ -31,9 +31,9 @@ def detect_pan_status():
         status = status_model.predict(features_scaled)[0]
         
         # Predict temperature
-        temperature = temp_model.predict(features_scaled)[0]
+        #temperature = temp_model.predict(features_scaled)[0]
         
-        return jsonify({"pan_status": "Not Empty" if status == 1 else "Empty", "temperature": round(temperature, 2)})
+        return jsonify({"pan_status": "Not Empty" if status == 0 else "Empty"})
     
     except Exception as e:
         return jsonify({"error": str(e)})
